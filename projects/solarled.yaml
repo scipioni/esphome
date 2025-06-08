@@ -88,6 +88,11 @@ display:
     height: ${leds}
     update_interval: 1000ms
     lambda: |-
+      // il display è al contrario:
+      // - pixel alto it.rectangle(1, 0, 0, 1, color)
+      // - pixel basso it.rectangle(height, 0, 0, 1, color)
+
+
       int power_max = ${power_max}; // watt
 
       auto sensor = *id(${charge_sensor});
@@ -108,24 +113,17 @@ display:
       }
       int color_intensity = charge_color_sensor.state;
 
-
       if (abs(power_charge_discharge) > power_max) {
         power_charge_discharge = power_max*abs(power_charge_discharge)/power_charge_discharge; // limitiamo a power_max con il segno
       }
-      int charge_discharge_color = round((power_charge_discharge*255)/power_max); // power_max to 255
-      
-      
-      Color ring;
-      if (the_charge > 60) {
-        ring = Color(0, color_intensity, 0); // green
-      } else if (the_charge > 30 ) {
-        ring = Color(color_intensity, color_intensity, 0); // yellow
-      } else {
-        ring = Color(color_intensity, 0, 0); // red
-      }
       int charge_height = round((the_charge * ${leds}) / 100);
-      it.rectangle(0, 0, 0, charge_height, ring); 
-      
+      int pixel_charge = ${leds} - charge_height;
+      int intensity_low = 32;
+      it.rectangle(pixel_charge, 0, 0, ${leds} - pixel_charge, Color(0, intensity_low, 0)); // color with the charge heigt in medium green
+      it.rectangle(1, 0, 0, pixel_charge, Color(intensity_low, 0, 0)); // color with medium red from height led to pixel_charge
+
+
+      int charge_discharge_color = round((power_charge_discharge*255)/power_max); // power_max to 255
       Color color;
       if (charge_discharge_color > 0) { // charge
         color = Color(0, charge_discharge_color, 0); // green
@@ -135,7 +133,8 @@ display:
         color = Color(-charge_discharge_color, 0, 0); // red
       }
       // it.rectangle(top, left, width, height, color); 
-      it.rectangle(0, 0, 0, 1, color); // solo il primo pixel
+      it.rectangle(pixel_charge, 0, 0, 1, color); // solo il pixel basso
+      
 
 switch:
   - platform: gpio
