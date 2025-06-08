@@ -1,0 +1,50 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  GREETING: Hello, World!
+
+env:
+  CONFIG: eink
+  PORT: /dev/ttyUSB0
+  IP: 192.168.2.60 
+
+tasks:
+  default:
+    cmds:
+      - echo "config=$CONFIG port=$PORT" 
+    silent: true
+
+  setup:
+    cmds:
+      - docker pull ghcr.io/esphome/esphome
+
+  flash:
+    cmds:
+      - docker compose run --rm esphome run $CONFIG.yaml --device $PORT
+  
+  flash:ota:
+    cmds:
+      - docker compose run --rm esphome run $CONFIG.yaml --device $IP
+  
+  compile:
+    cmds:
+      - docker compose run --rm esphome compile $CONFIG.yaml
+
+  run:
+    cmds:
+      - task: compile
+      - task: flash:serial
+
+  identify:
+    cmds:
+      - esptool.py -p /dev/ttyUSB0 chip_id
+  
+  logs:
+    cmds:
+      - docker compose run --rm esphome logs $CONFIG.yaml --device $CONFIG.local
+
+  logs:serial:
+    cmds:
+      - docker compose run --rm esphome logs $CONFIG.yaml --device $PORT

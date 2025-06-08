@@ -1,0 +1,152 @@
+
+
+substitutions:
+  node_name: solarled
+  node_friendly_name: "solarled"
+  led_pin: GPIO2
+  leds: "12"
+  power_max: "3000"
+  charge_sensor: "battery_charge"
+  #charge_sensor: "battery_charge_test"
+  #color_intensity: "99"
+
+packages:
+  esp_common: !include ./common.yaml
+
+esp32:
+  board: esp32doit-devkit-v1
+  framework:
+    type: arduino
+
+# logger:
+#   level: INFO
+
+
+sensor:
+  - platform: homeassistant
+    name: "battery charge"
+    entity_id: sensor.battery_state_of_capacity
+    id: battery_charge
+  - platform: homeassistant
+    name: "battery charge test"
+    entity_id: input_number.charge_test 
+    id: battery_charge_test
+  - platform: homeassistant
+    name: "battery charge discharge power"
+    entity_id: sensor.battery_charge_discharge_power
+    id: battery_charge_discharge
+  - platform: homeassistant
+    name: "battery charge color intensity"
+    entity_id: input_number.charge_color
+    id: charge_color
+
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: led_ring
+    name: "solarled light"
+    pin: GPIO4
+    num_leds: ${leds}
+    rmt_channel: 0
+    rgb_order: GRB
+    chipset: ws2812
+    effects:
+      - random:
+          name: "Slow Random"
+          transition_length: 30s
+          update_interval: 30s
+      - random:
+          name: "Fast Random"
+          transition_length: 4s
+          update_interval: 5s
+      - addressable_rainbow:
+          name: Rainbow
+          speed: 10
+          width: 50
+      - addressable_twinkle:
+          name: Twinkle Effect
+          twinkle_probability: 5%
+          progress_interval: 4ms
+      - addressable_random_twinkle:
+          name: Random Twinkle
+          twinkle_probability: 5%
+          progress_interval: 32ms
+      - addressable_fireworks:
+          name: Fireworks
+          update_interval: 32ms
+          spark_probability: 10%
+          use_random_color: false
+          fade_out_rate: 120
+      - addressable_flicker:
+          name: Flicker
+
+display:
+  - platform: addressable_light
+    id: led_matrix_display_1
+    addressable_light_id: led_ring
+    width: 1
+    height: ${leds}
+    update_interval: 1000ms
+    lambda: |-
+      int power_max = ${power_max}; // watt
+
+      auto sensor = *id(${charge_sensor});
+      if (!sensor.has_state()) {
+        return;
+      }
+      int the_charge = sensor.state;
+
+      auto charge_discharge_sensor = *id(battery_charge_discharge);
+      if (!charge_discharge_sensor.has_state()) {
+        return;
+      }
+      int power_charge_discharge = charge_discharge_sensor.state;
+
+      auto charge_color_sensor = *id(charge_color);
+      if (!charge_color_sensor.has_state()) {
+        return;
+      }
+      int color_intensity = charge_color_sensor.state;
+
+
+      if (abs(power_charge_discharge) > power_max) {
+        power_charge_discharge = power_max*abs(power_charge_discharge)/power_charge_discharge; // limitiamo a power_max con il segno
+      }
+      int charge_discharge_color = round((power_charge_discharge*255)/power_max); // power_max to 255
+      
+      
+      Color ring;
+      if (the_charge > 60) {
+        ring = Color(0, color_intensity, 0); // green
+      } else if (the_charge > 30 ) {
+        ring = Color(color_intensity, color_intensity, 0); // yellow
+      } else {
+        ring = Color(color_intensity, 0, 0); // red
+      }
+      int charge_height = round((the_charge * ${leds}) / 100);
+      it.rectangle(0, 0, 0, charge_height, ring); 
+      
+      Color color;
+      if (charge_discharge_color > 0) { // charge
+        color = Color(0, charge_discharge_color, 0); // green
+        ESP_LOGD("lambda", "charge from %dWatt to %d", power_charge_discharge, charge_discharge_color);
+      } else {
+        ESP_LOGD("lambda", "discharge from %dWatt to %d", power_charge_discharge, -charge_discharge_color);
+        color = Color(-charge_discharge_color, 0, 0); // red
+      }
+      // it.rectangle(top, left, width, height, color); 
+      it.rectangle(0, 0, 0, 1, color); // solo il primo pixel
+
+switch:
+  - platform: gpio
+    pin: ${led_pin}
+    id: led
+    #inverted: true
+
+interval:
+  - interval: 2000ms
+    then:
+      - switch.turn_on: led
+      - delay: 200ms
+      - switch.turn_off: led
+

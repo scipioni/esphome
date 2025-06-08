@@ -1,0 +1,9 @@
+/hass
+*.blend1
+__pycache__
+experiments
+*.stl
+platformio/lora/lib/heltec_esp32_lora_v3/.github/workflows
+.cache
+compile_commands.json
+.venv

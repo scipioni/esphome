@@ -1,0 +1,15 @@
+services:
+  esphome:
+    container_name: esphome
+    image: ghcr.io/esphome/esphome
+    #entrypoint: bash
+    volumes:
+      - ./projects:/config
+      - /etc/localtime:/etc/localtime:ro
+    devices:
+     - ${PORT}
+    environment:
+      - ESPHOME_DASHBOARD_USE_PING=true
+      - USERNAME=test
+      - PASSWORD=test
+ 
