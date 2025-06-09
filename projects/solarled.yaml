@@ -18,8 +18,8 @@ esp32:
   framework:
     type: arduino
 
-# logger:
-#   level: INFO
+logger:
+  level: INFO
 
 
 sensor:
@@ -88,11 +88,6 @@ display:
     height: ${leds}
     update_interval: 1000ms
     lambda: |-
-      // il display è al contrario:
-      // - pixel alto it.rectangle(1, 0, 0, 1, color)
-      // - pixel basso it.rectangle(height, 0, 0, 1, color)
-
-
       int power_max = ${power_max}; // watt
 
       auto sensor = *id(${charge_sensor});
@@ -118,10 +113,7 @@ display:
       }
       int charge_height = round((the_charge * ${leds}) / 100);
       int pixel_charge = ${leds} - charge_height;
-      int intensity_low = 32;
-      it.rectangle(pixel_charge, 0, 0, ${leds} - pixel_charge, Color(0, intensity_low, 0)); // color with the charge heigt in medium green
-      it.rectangle(1, 0, 0, pixel_charge, Color(intensity_low, 0, 0)); // color with medium red from height led to pixel_charge
-
+      
 
       int charge_discharge_color = round((power_charge_discharge*255)/power_max); // power_max to 255
       Color color;
@@ -132,8 +124,14 @@ display:
         ESP_LOGD("lambda", "discharge from %dWatt to %d", power_charge_discharge, -charge_discharge_color);
         color = Color(-charge_discharge_color, 0, 0); // red
       }
-      // it.rectangle(top, left, width, height, color); 
-      it.rectangle(pixel_charge, 0, 0, 1, color); // solo il pixel basso
+
+      int intensity_low = 96;
+      // it.rectangle(0, bottom, 0, height, color); 
+      it.rectangle(0, 0, 0, pixel_charge-1, Color(intensity_low, 0, 0)); // color with medium red from height led to pixel_charge
+      it.rectangle(0, pixel_charge-1, 0, 1, color); // singolo led 
+      it.rectangle(0, pixel_charge, 0, ${leds}, Color(0, intensity_low, 0)); // color all leds in medium green
+
+      ESP_LOGI("lambda", "leds=%d, pixel_charge=%d", ${leds}, pixel_charge); //msg.c_str(), host.c_str(), port, n_bytes);
       
 
 switch:
