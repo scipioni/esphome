@@ -5,9 +5,11 @@ substitutions:
   node_friendly_name: "solarled"
   led_pin: GPIO2
   leds: "12"
-  power_max: "3000"
+  power_max: "6000"
   charge_sensor: "battery_charge"
   #charge_sensor: "battery_charge_test"
+  charge_discharge_power_sensor: "battery_charge_discharge_power"
+  #charge_discharge_power_sensor: "battery_charge_discharge_power_test"
   #color_intensity: "99"
 
 packages:
@@ -34,7 +36,11 @@ sensor:
   - platform: homeassistant
     name: "battery charge discharge power"
     entity_id: sensor.battery_charge_discharge_power
-    id: battery_charge_discharge
+    id: battery_charge_discharge_power
+  - platform: homeassistant
+    name: "battery charge discharge power test"
+    entity_id: input_number.battery_charge_discharge_power_test
+    id: battery_charge_discharge_power_test
   - platform: homeassistant
     name: "battery charge color intensity"
     entity_id: input_number.charge_color
@@ -94,13 +100,13 @@ display:
       if (!sensor.has_state()) {
         return;
       }
-      int the_charge = sensor.state;
+      int the_charge = sensor.state; // da 0 a 100
 
-      auto charge_discharge_sensor = *id(battery_charge_discharge);
+      auto charge_discharge_sensor = *id(${charge_discharge_power_sensor});
       if (!charge_discharge_sensor.has_state()) {
         return;
       }
-      int power_charge_discharge = charge_discharge_sensor.state;
+      int power_charge_discharge = charge_discharge_sensor.state; // da -6000 a +6000
 
       auto charge_color_sensor = *id(charge_color);
       if (!charge_color_sensor.has_state()) {
@@ -111,8 +117,8 @@ display:
       if (abs(power_charge_discharge) > power_max) {
         power_charge_discharge = power_max*abs(power_charge_discharge)/power_charge_discharge; // limitiamo a power_max con il segno
       }
-      int charge_height = round((the_charge * ${leds}) / 100);
-      int pixel_charge = ${leds} - charge_height;
+      int charge_leds = round((the_charge * ${leds}) / 100.0); // da 0 a 12
+      int pixel_charge = ${leds} - charge_leds; // da 12 a 0
       
 
       int charge_discharge_color = round((power_charge_discharge*255)/power_max); // power_max to 255
@@ -127,11 +133,11 @@ display:
 
       int intensity_low = 96;
       // it.rectangle(0, bottom, 0, height, color); 
-      it.rectangle(0, 0, 0, pixel_charge-1, Color(intensity_low, 0, 0)); // color with medium red from height led to pixel_charge
-      it.rectangle(0, pixel_charge-1, 0, 1, color); // singolo led 
+      it.rectangle(0, 0, 0, pixel_charge, Color(intensity_low, 0, 0)); // color with medium red from height led to pixel_charge
       it.rectangle(0, pixel_charge, 0, ${leds}, Color(0, intensity_low, 0)); // color all leds in medium green
+      it.rectangle(0, pixel_charge, 0, 1, color); // singolo led 
 
-      ESP_LOGI("lambda", "leds=%d, pixel_charge=%d", ${leds}, pixel_charge); //msg.c_str(), host.c_str(), port, n_bytes);
+      ESP_LOGI("lambda", "power_charge_discharge=%d, the_charge=%d, leds=%d, pixel_charge=%d", power_charge_discharge, the_charge, ${leds}, pixel_charge); //msg.c_str(), host.c_str(), port, n_bytes);
       
 
 switch:
