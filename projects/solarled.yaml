@@ -10,7 +10,8 @@ substitutions:
   #charge_sensor: "battery_charge_test"
   charge_discharge_power_sensor: "battery_charge_discharge_power"
   #charge_discharge_power_sensor: "battery_charge_discharge_power_test"
-  #color_intensity: "99"
+  intensity_low: "96"
+  
 
 packages:
   esp_common: !include ./common.yaml
@@ -29,18 +30,18 @@ sensor:
     name: "battery charge"
     entity_id: sensor.battery_state_of_capacity
     id: battery_charge
-  - platform: homeassistant
-    name: "battery charge test"
-    entity_id: input_number.charge_test 
-    id: battery_charge_test
+  # - platform: homeassistant
+  #   name: "battery charge test"
+  #   entity_id: input_number.charge_test 
+  #   id: battery_charge_test
   - platform: homeassistant
     name: "battery charge discharge power"
     entity_id: sensor.battery_charge_discharge_power
     id: battery_charge_discharge_power
-  - platform: homeassistant
-    name: "battery charge discharge power test"
-    entity_id: input_number.battery_charge_discharge_power_test
-    id: battery_charge_discharge_power_test
+  # - platform: homeassistant
+  #   name: "battery charge discharge power test"
+  #   entity_id: input_number.battery_charge_discharge_power_test
+  #   id: battery_charge_discharge_power_test
   - platform: homeassistant
     name: "battery charge color intensity"
     entity_id: input_number.charge_color
@@ -94,51 +95,76 @@ display:
     height: ${leds}
     update_interval: 1000ms
     lambda: |-
-      int power_max = ${power_max}; // watt
+      // Define the maximum power in watts, obtained from substitutions.
+      int max_power_watt = ${power_max};
 
-      auto sensor = *id(${charge_sensor});
-      if (!sensor.has_state()) {
-        return;
+      // Retrieve the current battery charge percentage (0-100) from the Home Assistant sensor.
+      auto& battery_charge_sensor = *id(${charge_sensor});
+      if (!battery_charge_sensor.has_state()) {
+        return; // Exit if sensor state is not available.
       }
-      int the_charge = sensor.state; // da 0 a 100
+      int current_charge_percent = battery_charge_sensor.state;
 
-      auto charge_discharge_sensor = *id(${charge_discharge_power_sensor});
-      if (!charge_discharge_sensor.has_state()) {
-        return;
+      // Retrieve the current charge/discharge power in watts from the Home Assistant sensor.
+      auto& charge_discharge_power_sensor = *id(${charge_discharge_power_sensor});
+      if (!charge_discharge_power_sensor.has_state()) {
+        return; // Exit if sensor state is not available.
       }
-      int power_charge_discharge = charge_discharge_sensor.state; // da -6000 a +6000
+      int current_power_watt = charge_discharge_power_sensor.state;
 
-      auto charge_color_sensor = *id(charge_color);
-      if (!charge_color_sensor.has_state()) {
-        return;
+      // Retrieve the color intensity setting from the Home Assistant input_number.
+      auto& charge_color_input = *id(charge_color);
+      if (!charge_color_input.has_state()) {
+        return; // Exit if sensor state is not available.
       }
-      int color_intensity = charge_color_sensor.state;
+      int display_color_intensity = charge_color_input.state;
 
-      if (abs(power_charge_discharge) > power_max) {
-        power_charge_discharge = power_max*abs(power_charge_discharge)/power_charge_discharge; // limitiamo a power_max con il segno
-      }
-      int charge_leds = round((the_charge * ${leds}) / 100.0); // da 0 a 12
-      int pixel_charge = ${leds} - charge_leds; // da 12 a 0
-      
-
-      int charge_discharge_color = round((power_charge_discharge*255)/power_max); // power_max to 255
-      Color color;
-      if (charge_discharge_color > 0) { // charge
-        color = Color(0, charge_discharge_color, 0); // green
-        ESP_LOGD("lambda", "charge from %dWatt to %d", power_charge_discharge, charge_discharge_color);
-      } else {
-        ESP_LOGD("lambda", "discharge from %dWatt to %d", power_charge_discharge, -charge_discharge_color);
-        color = Color(-charge_discharge_color, 0, 0); // red
+      // Limit the power value to the defined maximum to prevent overflow or unexpected behavior.
+      if (abs(current_power_watt) > max_power_watt) {
+        current_power_watt = max_power_watt * (current_power_watt / abs(current_power_watt)); // Preserve the sign.
       }
 
-      int intensity_low = 96;
-      // it.rectangle(0, bottom, 0, height, color); 
-      it.rectangle(0, 0, 0, pixel_charge, Color(intensity_low, 0, 0)); // color with medium red from height led to pixel_charge
-      it.rectangle(0, pixel_charge, 0, ${leds}, Color(0, intensity_low, 0)); // color all leds in medium green
-      it.rectangle(0, pixel_charge, 0, 1, color); // singolo led 
+      // Calculate the number of LEDs to light up based on battery charge percentage.
+      // ${leds} is the total number of LEDs.
+      int lit_leds_count = round((current_charge_percent * ${leds}) / 100.0);
 
-      ESP_LOGI("lambda", "power_charge_discharge=%d, the_charge=%d, leds=%d, pixel_charge=%d", power_charge_discharge, the_charge, ${leds}, pixel_charge); //msg.c_str(), host.c_str(), port, n_bytes);
-      
+      // Calculate the starting pixel for the charge display (from the top of the strip).
+      // This assumes LEDs are indexed from 0 at the bottom to ${leds}-1 at the top.
+      int charge_display_start_pixel = ${leds} - lit_leds_count;
+
+      // Map the charge/discharge power to a color intensity value (0-255).
+      // Positive values indicate charging (green), negative indicate discharging (red).
+      int power_color_value = round((current_power_watt * 255.0) / max_power_watt);
+      Color active_color;
+
+      // Determine the color based on charge/discharge status.
+      if (power_color_value > 0) { // Charging
+        active_color = Color(0, power_color_value, 0); // Green
+        ESP_LOGD("lambda", "Charging: %dWatt, mapped to color value %d", current_power_watt, power_color_value);
+      } else { // Discharging
+        active_color = Color(-power_color_value, 0, 0); // Red (absolute value for intensity)
+        ESP_LOGD("lambda", "Discharging: %dWatt, mapped to color value %d", current_power_watt, -power_color_value);
+      }
+
+      // Define a low intensity color for background or inactive segments.
+      int low_intensity_color_value = ${intensity_low};
+
+      // Draw the "discharged" portion of the LED strip in a medium red.
+      // This section goes from the bottom (pixel 0) up to the `charge_display_start_pixel`.
+      it.rectangle(0, 0, 0, charge_display_start_pixel, Color(low_intensity_color_value, 0, 0));
+
+      // Draw the "charged" portion of the LED strip in a medium green.
+      // This section goes from `charge_display_start_pixel` to the top (${leds}).
+      it.rectangle(0, charge_display_start_pixel, 0, ${leds}, Color(0, low_intensity_color_value, 0));
+
+      // Draw a single pixel at the `charge_display_start_pixel` with the active charge/discharge color.
+      // This highlights the current power flow.
+      it.rectangle(0, charge_display_start_pixel, 0, 1, active_color);
+
+      // Log current values for debugging.
+      ESP_LOGI("lambda", "Power: %dW, Charge: %d%%, Lit LEDs: %d, Start Pixel: %d",
+               current_power_watt, current_charge_percent, lit_leds_count, charge_display_start_pixel);
+       
 
 switch:
   - platform: gpio

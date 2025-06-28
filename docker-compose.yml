@@ -1,7 +1,7 @@
 services:
   esphome:
     container_name: esphome
-    image: ghcr.io/esphome/esphome
+    image: ghcr.io/esphome/esphome:stable
     #entrypoint: bash
     volumes:
       - ./projects:/config
