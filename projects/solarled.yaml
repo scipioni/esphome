@@ -132,35 +132,40 @@ display:
       // This assumes LEDs are indexed from 0 at the bottom to ${leds}-1 at the top.
       int charge_display_start_pixel = ${leds} - lit_leds_count;
 
+
       // Map the charge/discharge power to a color intensity value (0-255).
       // Positive values indicate charging (green), negative indicate discharging (red).
-      int power_color_value = round((current_power_watt * 255.0) / max_power_watt);
-      Color active_color;
+      int power_color_value = abs(round((current_power_watt * 255.0) / max_power_watt));
 
-      // Determine the color based on charge/discharge status.
-      if (power_color_value > 0) { // Charging
-        active_color = Color(0, power_color_value, 0); // Green
-        ESP_LOGD("lambda", "Charging: %dWatt, mapped to color value %d", current_power_watt, power_color_value);
-      } else { // Discharging
-        active_color = Color(-power_color_value, 0, 0); // Red (absolute value for intensity)
-        ESP_LOGD("lambda", "Discharging: %dWatt, mapped to color value %d", current_power_watt, -power_color_value);
-      }
+
+      int power_pixel = 0; // top pixel
 
       // Define a low intensity color for background or inactive segments.
       int low_intensity_color_value = ${intensity_low};
 
       // Draw the "discharged" portion of the LED strip in a medium red.
       // This section goes from the bottom (pixel 0) up to the `charge_display_start_pixel`.
-      it.rectangle(0, 0, 0, charge_display_start_pixel, Color(low_intensity_color_value, 0, 0));
+      it.rectangle(0, power_pixel + 1, 0, charge_display_start_pixel, Color(low_intensity_color_value, 0, 0));
 
       // Draw the "charged" portion of the LED strip in a medium green.
       // This section goes from `charge_display_start_pixel` to the top (${leds}).
       it.rectangle(0, charge_display_start_pixel, 0, ${leds}, Color(0, low_intensity_color_value, 0));
 
-      // Draw a single pixel at the `charge_display_start_pixel` with the active charge/discharge color.
-      // This highlights the current power flow.
-      it.rectangle(0, charge_display_start_pixel, 0, 1, active_color);
 
+
+      // Determine the color of power pixel based on charge/discharge status.
+      Color active_color;
+      if (current_power_watt > 0) { // Charging
+        active_color = Color(0, 0, power_color_value); // Blu
+        ESP_LOGD("lambda", "Charging: %dWatt, mapped to color value %d", current_power_watt, power_color_value);
+      } else { // Discharging
+        active_color = Color(power_color_value, power_color_value, 0); // Yellow (absolute value for intensity)
+        //active_color = Color(power_color_value, 0, 0); // Red(absolute value for intensity)
+        ESP_LOGD("lambda", "Discharging: %dWatt, mapped to color value %d", current_power_watt, power_color_value);
+      }
+      // Draw a single pixel at the 0 pixel with the active charge/discharge color.
+      // This highlights the current power flow.
+      it.rectangle(0, power_pixel, 0, 1, active_color);
       // Log current values for debugging.
       ESP_LOGI("lambda", "Power: %dW, Charge: %d%%, Lit LEDs: %d, Start Pixel: %d",
                current_power_watt, current_charge_percent, lit_leds_count, charge_display_start_pixel);
