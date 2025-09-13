@@ -1,0 +1,87 @@
+
+# 1 led for power, from yellow (discharge) to blue (charge)
+# other 9 leds for charge value, from 0perc to 100perc
+
+substitutions:
+  node_name: tag-cancello
+  led_pin: GPIO8
+  node_friendly_name: "tag cancello"
+  # leds: "10"
+  # power_max: "6000"
+  # charge_sensor: "battery_charge"
+  # #charge_sensor: "battery_charge_test"
+  # charge_discharge_power_sensor: "battery_charge_discharge_power"
+  # #charge_discharge_power_sensor: "battery_charge_discharge_power_test"
+  # intensity_low: "96"
+  
+
+packages:
+  esp_common: !include ./common.yaml
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+logger:
+  #level: INFO
+  level: VERY_VERBOSE
+
+
+switch:
+  - platform: gpio
+    pin: ${led_pin}
+    id: led
+    inverted: true
+
+interval:
+  - interval: 500ms
+    then:
+      - if:
+          condition:
+            binary_sensor.is_on: scipio_presence
+          then:
+            - switch.turn_on: led
+            - delay: 100ms
+            - switch.turn_off: led
+  - interval: 2000ms
+    then:
+      - if:
+          condition:
+            binary_sensor.is_off: scipio_presence
+          then:
+            - switch.turn_on: led
+            - delay: 100ms
+            - switch.turn_off: led
+
+
+
+esp32_ble_tracker:
+  scan_parameters:
+    continuous: false
+  # Example configuration entry for finding
+  # MAC addresses, Service UUIDs, iBeacon UUIDs, and identifiers
+  on_ble_advertise:
+    - then:
+
+api:
+  on_client_connected:
+    - esp32_ble_tracker.start_scan:
+       continuous: true
+  on_client_disconnected:
+    - esp32_ble_tracker.stop_scan:
+
+
+binary_sensor:
+  - platform: ble_presence
+    id: scipio_presence
+    ibeacon_uuid: 8F9D779C-2E4A-433A-80A4-D39195E2C77F
+    name: "Scipio presence"
+    timeout: 30s
+    min_rssi: -85
+  - platform: ble_presence
+    id: itag_presence
+    service_uuid: "ffe0"
+    name: "iTag"
+    timeout: 30s
+    min_rssi: -85

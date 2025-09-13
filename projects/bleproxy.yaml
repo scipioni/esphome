@@ -1,0 +1,61 @@
+# 1 led for power, from yellow (discharge) to blue (charge)
+# other 9 leds for charge value, from 0perc to 100perc
+
+substitutions:
+  node_name: bleproxy
+  led_pin: GPIO8
+  node_friendly_name: "bleproxy"
+  # leds: "10"
+  # power_max: "6000"
+  # charge_sensor: "battery_charge"
+  # #charge_sensor: "battery_charge_test"
+  # charge_discharge_power_sensor: "battery_charge_discharge_power"
+  # #charge_discharge_power_sensor: "battery_charge_discharge_power_test"
+  # intensity_low: "96"
+
+packages:
+  esp_common: !include ./common.yaml
+
+esp32:
+  board: esp32-c3-devkitm-1
+  # This is crucial for stability on single-core chips
+  framework:
+    type: esp-idf
+
+logger:
+  #level: INFO
+  level: VERY_VERBOSE
+
+switch:
+  - platform: gpio
+    pin: ${led_pin}
+    id: led
+    inverted: true
+
+interval:
+  - interval: 2000ms
+    then:
+      - switch.turn_on: led
+      - delay: 200ms
+      - switch.turn_off: led
+
+# Enable the Bluetooth proxy
+bluetooth_proxy:
+  # Enable proxying active connections, which is required for some devices (e.g., SwitchBot)
+  active: true
+
+# The BLE tracker hub component
+esp32_ble_tracker:
+  # Only enable the tracker when the API is connected to Home Assistant.
+  # This is the most important workaround for single-core ESP32-C3 devices.
+  # It gives the chip time to establish a stable Wi-Fi connection before
+  # starting the resource-intensive BLE scan.
+  scan_parameters:
+    #continuous: false
+    # Setting interval and window to their default values (320ms and 30ms)
+    # is recommended for Wi-Fi-based proxies to avoid instability.
+    interval: 320ms
+    window: 30ms
+  # log everything
+  on_ble_advertise:
+    - then:

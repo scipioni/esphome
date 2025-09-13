@@ -22,7 +22,7 @@ tasks:
 
   flash:
     cmds:
-      - docker compose run --rm esphome run $CONFIG.yaml --device $PORT
+      - docker compose -f docker-compose-usb.yml run --rm esphome run $CONFIG.yaml --device $PORT
   
   flash:ota:
     cmds:
@@ -47,4 +47,4 @@ tasks:
 
   logs:serial:
     cmds:
-      - docker compose run --rm esphome logs $CONFIG.yaml --device $PORT
+      - docker compose -f docker-compose-usb.yml run --rm esphome logs $CONFIG.yaml --device $PORT

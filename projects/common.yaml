@@ -1,7 +1,6 @@
 esphome:
   name: ${node_name}
   friendly_name: ${node_friendly_name}
-  #build_path: ../../build/${node_name}
   on_boot:
     priority: -100.0
     then:
@@ -19,23 +18,15 @@ wifi:
     ssid: ${node_name}
     password: !secret ap_password
 
-# captive_portal:
-
-improv_serial:
-
-# Enable logging
 logger:
   level: VERBOSE
 
-# Enable Home Assistant API and define services
+# Enable Home Assistant API
 api:
-  #encryption:
-  #  key: !secret api_key
-  #reboot_timeout: 120min
 
+# Enable OTA updates
 ota:
   - platform: esphome
-  #password: !secret ota_password
 
 button:
   - platform: restart
@@ -70,14 +61,5 @@ text_sensor:
       seconds = seconds % (24 * 3600); 
       int hours = seconds / 3600;
       seconds = seconds % 3600;
-      int minutes = seconds /  60;
-      return { (String(days) +"d " + String(hours) +"h " + String(minutes) +"m").c_str() };
-
-#deep_sleep:
-#  run_duration: 8s
-#  sleep_duration: 10min
-#  wakeup_pin:
-#    number: 39
-#    inverted: True
-#  wakeup_pin_mode: IGNORE
-#  id: deep_sleep_1
+      int minutes = seconds / 60;
+      return { (std::to_string(days) + "d " + std::to_string(hours) + "h " + std::to_string(minutes) + "m").c_str() };
