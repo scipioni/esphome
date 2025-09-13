@@ -1,10 +1,12 @@
 
+# 1 led for power, from yellow (discharge) to blue (charge)
+# other 9 leds for charge value, from 0perc to 100perc
 
 substitutions:
   node_name: solarled
   node_friendly_name: "solarled"
   led_pin: GPIO2
-  leds: "12"
+  leds: "10"
   power_max: "6000"
   charge_sensor: "battery_charge"
   #charge_sensor: "battery_charge_test"
@@ -55,8 +57,8 @@ light:
     pin: GPIO4
     num_leds: ${leds}
     rmt_channel: 0
-    rgb_order: GRB
     chipset: ws2812
+    rgb_order: GRB
     effects:
       - random:
           name: "Slow Random"
@@ -126,17 +128,19 @@ display:
 
       // Calculate the number of LEDs to light up based on battery charge percentage.
       // ${leds} is the total number of LEDs.
-      int lit_leds_count = round((current_charge_percent * ${leds}) / 100.0);
+      int lit_leds_count = round((current_charge_percent * (${leds}-1)) / 100.0); // from 0 to 9
 
       // Calculate the starting pixel for the charge display (from the top of the strip).
       // This assumes LEDs are indexed from 0 at the bottom to ${leds}-1 at the top.
-      int charge_display_start_pixel = ${leds} - lit_leds_count;
+      int charge_display_start_pixel = ${leds} - lit_leds_count; // from 1 to 10
+
+      //it.rectangle(0, 0, 0, ${leds}, Color(0, 0, 255)); // all leds to blu
+      //return;
 
 
       // Map the charge/discharge power to a color intensity value (0-255).
       // Positive values indicate charging (green), negative indicate discharging (red).
       int power_color_value = abs(round((current_power_watt * 255.0) / max_power_watt));
-
 
       int power_pixel = 0; // top pixel
 
