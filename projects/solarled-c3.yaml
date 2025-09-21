@@ -180,7 +180,7 @@ switch:
   - platform: gpio
     pin: ${led_pin}
     id: led
-    #inverted: true
+    inverted: true
 
 interval:
   - interval: 2000ms
